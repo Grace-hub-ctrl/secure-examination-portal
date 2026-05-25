@@ -1,0 +1,6 @@
+{
+  "name": "Examination Portal",
+  "description": "A robust examination portal with teacher, student, and admin modules, featuring anti-cheating measures and real-time monitoring.",
+  "requestFramePermissions": ["camera", "microphone"],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
