@@ -228,8 +228,11 @@ export default function ExamInterface() {
 
       const scorePercentage = Math.round((correctCount / displayQuestions.length) * 100);
 
+      const submissionId = `sub-${Date.now()}-${Math.floor(Math.random() * 1000)}`;
+
       // Simulate API call with user tracking info
       const submissionData = {
+        submissionId,
         examId: id,
         examTitle: exam?.title || "Exam",
         studentName: user?.name,
@@ -241,7 +244,13 @@ export default function ExamInterface() {
         correctCount,
         totalQuestions: displayQuestions.length,
         scorePercentage,
-        submittedAt: new Date().toISOString()
+        submittedAt: new Date().toISOString(),
+        questions: displayQuestions, // include the full questions snapshot
+        status: "pending", // initial status is pending review
+        pointsReleased: false,
+        teacherFeedback: "",
+        adjustedCorrectCount: correctCount,
+        adjustedScorePercentage: scorePercentage
       };
       
       console.log("Submitting exam data:", submissionData);

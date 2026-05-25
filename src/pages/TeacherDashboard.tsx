@@ -10,7 +10,16 @@ import {
   AlertTriangle,
   Search,
   Filter,
-  Download
+  Download,
+  Check,
+  X,
+  Award,
+  MessageSquare,
+  ShieldAlert,
+  HelpCircle,
+  Eye,
+  PenTool,
+  ArrowRight
 } from "lucide-react";
 import { ExamCreationForm } from "@/components/ui/ExamCreationForm";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
@@ -19,6 +28,9 @@ import { ExamSummaryCard } from "@/components/ui/ExamSummaryCard";
 import { ViolationLog } from "@/components/ui/ViolationLog";
 import { ExamAnalytics } from "@/components/ui/ExamAnalytics";
 import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
+import { Badge } from "@/components/ui/badge";
 import axios from "axios";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
@@ -33,6 +45,12 @@ export default function TeacherDashboard() {
   const [blocks, setBlocks] = useState<any[]>([]);
   const [analytics, setAnalytics] = useState<any>(null);
   const [isLoading, setIsLoading] = useState(true);
+  
+  // Custom interactive grading workspace state
+  const [selectedSub, setSelectedSub] = useState<any>(null);
+  const [showReviewDialog, setShowReviewDialog] = useState(false);
+  const [adjustedCount, setAdjustedCount] = useState<number>(0);
+  const [feedbackText, setFeedbackText] = useState("");
 
   const fetchData = async () => {
     try {
@@ -111,9 +129,15 @@ export default function TeacherDashboard() {
       // Calculate Real Analytics
       if (localResults.length > 0) {
         const total = localResults.length;
-        const sumScores = localResults.reduce((acc: number, r: any) => acc + (r.scorePercentage || 0), 0);
+        const sumScores = localResults.reduce((acc: number, r: any) => {
+          const pct = r.adjustedScorePercentage !== undefined ? r.adjustedScorePercentage : r.scorePercentage;
+          return acc + (pct || 0);
+        }, 0);
         const avg = Math.round(sumScores / total);
-        const passed = localResults.filter((r: any) => (r.scorePercentage || 0) >= 50).length;
+        const passed = localResults.filter((r: any) => {
+          const pct = r.adjustedScorePercentage !== undefined ? r.adjustedScorePercentage : r.scorePercentage;
+          return (pct || 0) >= 50;
+        }).length;
         const passRate = Math.round((passed / total) * 100);
         
         const ranges = [
@@ -124,7 +148,8 @@ export default function TeacherDashboard() {
           { range: "81-100", count: 0 },
         ];
         localResults.forEach((r: any) => {
-          const s = r.scorePercentage || 0;
+          const pct = r.adjustedScorePercentage !== undefined ? r.adjustedScorePercentage : r.scorePercentage;
+          const s = pct || 0;
           if (s <= 20) ranges[0].count++;
           else if (s <= 40) ranges[1].count++;
           else if (s <= 60) ranges[2].count++;
@@ -252,23 +277,46 @@ export default function TeacherDashboard() {
                         {res.examTitle || `ID: ${res.examId}`}
                       </td>
                       <td className="px-6 py-4">
-                        <div className="flex items-center gap-2">
-                          <span className={cn(
-                            "text-sm font-black",
-                            res.scorePercentage >= 50 ? "text-green-600" : "text-red-600"
-                          )}>
-                            {res.scorePercentage}%
-                          </span>
-                          <span className="text-[10px] text-slate-400 font-bold">
-                            ({res.correctCount}/{res.totalQuestions})
-                          </span>
+                        <div className="flex flex-col gap-1">
+                          <div className="flex items-center gap-1.5">
+                            <span className={cn(
+                              "text-sm font-black",
+                              (res.status === "reviewed" || res.pointsReleased) ? "text-indigo-600" : res.scorePercentage >= 50 ? "text-green-600" : "text-amber-600"
+                            )}>
+                              {res.status === "reviewed" || res.pointsReleased ? `${Math.round(((res.adjustedCorrectCount !== undefined ? res.adjustedCorrectCount : res.correctCount) / res.totalQuestions) * 100)}%` : `${res.scorePercentage}%`}
+                            </span>
+                            <span className="text-[10px] text-slate-400 font-extrabold">
+                              ({res.status === "reviewed" || res.pointsReleased ? (res.adjustedCorrectCount !== undefined ? res.adjustedCorrectCount : res.correctCount) : res.correctCount}/{res.totalQuestions})
+                            </span>
+                          </div>
+                          {res.status === "reviewed" || res.pointsReleased ? (
+                            <span className="text-[9px] font-black uppercase text-indigo-600 bg-indigo-50 border border-indigo-100/60 rounded-full px-2 py-0.5 w-max">
+                              Graded & Released
+                            </span>
+                          ) : (
+                            <span className="text-[9px] font-black uppercase text-amber-600 bg-amber-50 border border-amber-100 rounded-full px-2 py-0.5 w-max animate-pulse">
+                              Pending Review
+                            </span>
+                          )}
                         </div>
                       </td>
-                      <td className="px-6 py-4 text-slate-500 text-[10px]">
+                      <td className="px-6 py-4 text-slate-500 text-[10px] font-medium">
                         {new Date(res.submittedAt).toLocaleString()}
                       </td>
                       <td className="px-6 py-4 text-right">
-                        <Button variant="ghost" size="sm" className="font-bold text-primary h-8">View Result</Button>
+                        <Button 
+                          variant="outline" 
+                          size="sm" 
+                          className="font-bold text-xs h-8 rounded-lg border-primary/20 hover:bg-primary/5 text-primary"
+                          onClick={() => {
+                            setSelectedSub(res);
+                            setAdjustedCount(res.adjustedCorrectCount !== undefined ? res.adjustedCorrectCount : res.correctCount);
+                            setFeedbackText(res.teacherFeedback || "");
+                            setShowReviewDialog(true);
+                          }}
+                        >
+                          Review & Grade
+                        </Button>
                       </td>
                     </tr>
                   )) : (
@@ -415,6 +463,295 @@ export default function TeacherDashboard() {
           </Card>
         </TabsContent>
       </Tabs>
+
+      {/* Interactive Assessment & Review Dialog */}
+      <Dialog open={showReviewDialog} onOpenChange={setShowReviewDialog}>
+        <DialogContent className="sm:max-w-[85vw] md:max-w-[75vw] w-full max-h-[92vh] overflow-y-auto rounded-[30px] border-none shadow-2xl p-0 font-sans">
+          {selectedSub && (
+            <div className="flex flex-col h-full bg-slate-50 text-slate-900">
+              {/* Header */}
+              <div className="px-8 py-6 bg-white border-b border-slate-100 sticky top-0 z-10 flex flex-col md:flex-row md:items-center justify-between gap-4">
+                <div className="space-y-1">
+                  <span className="text-[10px] font-black tracking-wider text-indigo-600 bg-indigo-50 border border-indigo-100 px-2.5 py-0.5 rounded-full uppercase">
+                    Grade {selectedSub.grade} • Section {selectedSub.section}
+                  </span>
+                  <DialogTitle className="text-2xl font-black text-slate-900 leading-tight block">
+                    Assess Submission: <span className="text-indigo-600 font-extrabold">{selectedSub.studentName}</span>
+                  </DialogTitle>
+                  <p className="text-xs text-slate-400 font-bold uppercase tracking-widest leading-none">
+                    Access Code: <span className="text-slate-700 font-black">{selectedSub.studentCode}</span> • Submitted: {new Date(selectedSub.submittedAt).toLocaleString()}
+                  </p>
+                </div>
+                <div className="flex items-center gap-2">
+                  <Badge variant="outline" className={cn(
+                    selectedSub.violations?.length > 0 ? "bg-red-50 text-red-700 border-red-200 animate-pulse" : "bg-green-50 text-green-700 border-green-200",
+                    "text-[10px] font-black uppercase px-2.5 py-1 flex items-center gap-1"
+                  )}>
+                    <ShieldAlert className="h-3.5 w-3.5" />
+                    {selectedSub.violations?.length || 0} Security Flags
+                  </Badge>
+                </div>
+              </div>
+
+              {/* Body split */}
+              <div className="p-8 space-y-8 flex-1 overflow-y-auto">
+                {/* Score adjustment & Feedback panel */}
+                <Card className="rounded-2xl border-none shadow-sm bg-white overflow-hidden">
+                  <div className="grid md:grid-cols-12 divide-y md:divide-y-0 md:divide-x divide-slate-100">
+                    <div className="p-6 md:col-span-5 space-y-4 flex flex-col justify-center">
+                      <div className="space-y-1.5">
+                        <Label className="text-xs font-black text-slate-400 uppercase tracking-widest">Adjust Total Points</Label>
+                        <div className="flex items-center gap-3">
+                          <Input 
+                            type="number"
+                            min={0}
+                            max={selectedSub.totalQuestions}
+                            value={adjustedCount}
+                            onChange={(e) => setAdjustedCount(Math.min(selectedSub.totalQuestions, Math.max(0, parseInt(e.target.value) || 0)))}
+                            className="w-24 h-12 text-center text-xl font-black rounded-xl border-2 border-slate-100 focus:border-indigo-500"
+                          />
+                          <span className="text-xl font-bold text-slate-400">/ {selectedSub.totalQuestions}</span>
+                        </div>
+                        <p className="text-[10px] text-slate-400 leading-normal font-bold uppercase tracking-wide mt-1">
+                          Evaluated Score Percentage: <span className="text-indigo-600 font-black">{Math.round((adjustedCount / selectedSub.totalQuestions) * 100)}%</span>
+                        </p>
+                      </div>
+
+                      <div className="flex items-center gap-2 pt-2">
+                        <Button 
+                          size="sm" 
+                          variant="outline" 
+                          type="button"
+                          className="h-8 text-[11px] font-bold gap-1 rounded-lg border-green-200 bg-green-50/50 hover:bg-green-50 text-green-700" 
+                          onClick={() => setAdjustedCount(selectedSub.totalQuestions)}
+                        >
+                          <Award className="h-3 w-3" /> Perfect Score
+                        </Button>
+                        <Button 
+                          size="sm" 
+                          variant="outline" 
+                          type="button"
+                          className="h-8 text-[11px] font-bold gap-1 rounded-lg border-slate-200" 
+                          onClick={() => setAdjustedCount(selectedSub.correctCount)}
+                        >
+                          Reset to Auto Grade
+                        </Button>
+                      </div>
+                    </div>
+
+                    <div className="p-6 md:col-span-7 space-y-2.5">
+                      <Label className="text-xs font-black text-slate-400 uppercase tracking-widest flex items-center gap-1.5">
+                        <MessageSquare className="h-4 w-4 text-indigo-500" />
+                        Teacher Remarks & Feedback
+                      </Label>
+                      <Textarea 
+                        placeholder="Write dynamic feedback, notes, or tips for the student..."
+                        value={feedbackText}
+                        onChange={(e) => setFeedbackText(e.target.value)}
+                        className="min-h-[100px] rounded-xl border border-slate-200 text-xs focus-visible:ring-indigo-500 focus:border-indigo-500 p-3 font-medium placeholder:text-slate-300 bg-slate-50/40"
+                      />
+                    </div>
+                  </div>
+                </Card>
+
+                {/* Question grading helper list */}
+                <div className="space-y-4">
+                  <h3 className="text-xs font-black uppercase text-slate-400 tracking-wider">Exam Questions & Submissions</h3>
+                  <div className="space-y-4">
+                    {(() => {
+                      const listQ = selectedSub.questions && selectedSub.questions.length > 0 ? selectedSub.questions : [
+                        { id: 1, type: "multiple-choice", text: "Which of the following is the primary site of photosynthesis in a plant cell?", options: ["Mitochondria", "Chloroplast", "Nucleus", "Ribosome"], correctIndex: 1 },
+                        { id: 2, type: "true-false", text: "The chemical formula for glucose is C6H12O6.", options: ["True", "False"], correctIndex: 0 },
+                        { id: 3, type: "short-answer", text: "Which process produces the most ATP during cellular respiration?", options: [], correctAnswer: "Electron transport chain" },
+                      ];
+                      
+                      return listQ.map((q: any, qIdx: number) => {
+                        const studentAns = selectedSub.answers?.[qIdx];
+                        let isCorrect = false;
+
+                        if (q.type === "multiple-choice" || q.type === "true-false") {
+                          isCorrect = studentAns === q.correctIndex;
+                        } else {
+                          isCorrect = studentAns?.toString().toLowerCase().trim() === (q.correctAnswer || q.expectedAnswer)?.toString().toLowerCase().trim();
+                        }
+
+                        return (
+                          <div key={q.id || qIdx} className="p-5 rounded-2xl border border-slate-100 bg-white shadow-sm space-y-4">
+                            <div className="flex items-center justify-between gap-2">
+                              <span className="text-[10px] font-black uppercase tracking-widest text-slate-400">
+                                Question {qIdx + 1} • <span className="text-indigo-600 font-bold">{q.type}</span>
+                              </span>
+                              {isCorrect ? (
+                                <Badge className="bg-green-50 text-green-700 border border-green-200 rounded-lg text-[10px] font-bold">
+                                  <Check className="h-3.5 w-3.5 mr-1" /> Match
+                                </Badge>
+                              ) : (
+                                <Badge className="bg-amber-50 text-amber-700 border border-amber-200 rounded-lg text-[10px] font-bold">
+                                  <X className="h-3.5 w-3.5 mr-1" /> Mismatch
+                                </Badge>
+                              )}
+                            </div>
+
+                            <p className="text-sm font-bold text-slate-900 tracking-tight leading-relaxed">{q.text}</p>
+
+                            {q.options && q.options.length > 0 && (
+                              <div className="grid gap-2 text-xs">
+                                {q.options.map((opt: string, optIdx: number) => {
+                                  const isStudentOption = studentAns === optIdx || (typeof studentAns === "string" && studentAns === opt);
+                                  const isCorrectOption = q.correctIndex === optIdx;
+                                  return (
+                                    <div 
+                                      key={optIdx} 
+                                      className={cn(
+                                        "p-3 rounded-xl border flex items-center justify-between font-semibold transition-all",
+                                        isCorrectOption ? "bg-green-55/40 bg-green-50 border-green-200 text-green-800" : isStudentOption ? "bg-red-50 border-red-250 text-red-800" : "bg-slate-50/50 border-slate-100 text-slate-700"
+                                      )}
+                                    >
+                                      <span>{opt}</span>
+                                      <div className="flex items-center gap-1.5">
+                                        {isCorrectOption && <span className="text-[8px] font-black uppercase tracking-wider bg-green-200 px-2 py-0.5 rounded text-green-900 border border-green-300">Correct Answer</span>}
+                                        {isStudentOption && <span className="text-[8px] font-black uppercase tracking-wider bg-indigo-200 px-2 py-0.5 rounded text-indigo-900 border border-indigo-300">Student Choice</span>}
+                                      </div>
+                                    </div>
+                                  );
+                                })}
+                              </div>
+                            )}
+
+                            {(!q.options || q.options.length === 0) && (
+                              <div className="grid gap-3 p-4 rounded-xl bg-slate-50 border border-slate-100 text-xs">
+                                <div className="space-y-1">
+                                  <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest">Expected Correct Answer:</p>
+                                  <p className="font-mono text-xs font-bold bg-white border border-slate-200 rounded-lg px-3 py-1.5 text-slate-800 inline-block">{q.correctAnswer || "N/A"}</p>
+                                </div>
+                                <div className="space-y-1">
+                                  <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest">Student Completed Entry:</p>
+                                  <p className={cn(
+                                    "font-mono text-xs font-bold border rounded-lg px-3 py-1.5 inline-block",
+                                    isCorrect ? "bg-green-50 border-green-200 text-green-800" : "bg-amber-50 border-amber-200 text-amber-800 font-extrabold"
+                                  )}>
+                                    {studentAns !== undefined && studentAns !== "" ? studentAns.toString() : "[Left Blank / No Answer]"}
+                                  </p>
+                                </div>
+                              </div>
+                            )}
+
+                            {/* Point increment tools */}
+                            <div className="flex items-center gap-2 pt-2 border-t border-slate-100 justify-end">
+                              <span className="text-[10px] text-slate-400 font-bold mr-2 uppercase tracking-wide">Quick Score adjuster:</span>
+                              <Button 
+                                size="sm" 
+                                type="button"
+                                variant="outline" 
+                                className="h-7 text-[10px] font-bold gap-1 rounded-lg border-slate-200 hover:bg-green-50 hover:text-green-700 hover:border-green-200"
+                                onClick={() => setAdjustedCount(prev => Math.min(selectedSub.totalQuestions, prev + 1))}
+                              >
+                                Increment Point (+1)
+                              </Button>
+                              <Button 
+                                size="sm" 
+                                type="button"
+                                variant="outline" 
+                                className="h-7 text-[10px] font-bold gap-1 rounded-lg border-slate-200 hover:bg-red-50 hover:text-red-700 hover:border-red-200"
+                                onClick={() => setAdjustedCount(prev => Math.max(0, prev - 1))}
+                              >
+                                Decrement Point (-1)
+                              </Button>
+                            </div>
+                          </div>
+                        );
+                      });
+                    })()}
+                  </div>
+                </div>
+              </div>
+
+              {/* Sticky Footer actions */}
+              <div className="p-6 bg-white border-t border-slate-100 flex items-center justify-between sticky bottom-0 z-10 rounded-b-[24px]">
+                <Button variant="ghost" className="font-bold text-slate-500 rounded-xl" onClick={() => setShowReviewDialog(false)}>
+                  Cancel Assessment
+                </Button>
+                <Button 
+                  onClick={() => {
+                    const localResults = JSON.parse(localStorage.getItem("local_results") || "[]");
+                    const updated = localResults.map((res: any) => {
+                      const matchesId = selectedSub.submissionId && res.submissionId === selectedSub.submissionId;
+                      const matchesCombo = !selectedSub.submissionId && 
+                                           res.studentCode === selectedSub.studentCode && 
+                                           res.examId === selectedSub.examId;
+
+                      if (matchesId || matchesCombo) {
+                        return {
+                          ...res,
+                          status: "reviewed",
+                          pointsReleased: true,
+                          adjustedCorrectCount: adjustedCount,
+                          adjustedScorePercentage: Math.round((adjustedCount / res.totalQuestions) * 100),
+                          teacherFeedback: feedbackText,
+                          reviewedAt: new Date().toISOString(),
+                          reviewedBy: "Teacher"
+                        };
+                      }
+                      return res;
+                    });
+
+                    localStorage.setItem("local_results", JSON.stringify(updated));
+                    setResults(updated);
+                    
+                    // Recalculate metrics
+                    if (updated.length > 0) {
+                      const total = updated.length;
+                      const sumScores = updated.reduce((acc: number, r: any) => {
+                        const pct = r.adjustedScorePercentage !== undefined ? r.adjustedScorePercentage : r.scorePercentage;
+                        return acc + (pct || 0);
+                      }, 0);
+                      const avg = Math.round(sumScores / total);
+                      const passed = updated.filter((r: any) => {
+                        const pct = r.adjustedScorePercentage !== undefined ? r.adjustedScorePercentage : r.scorePercentage;
+                        return (pct || 0) >= 50;
+                      }).length;
+                      const passRate = Math.round((passed / total) * 100);
+                      
+                      const ranges = [
+                        { range: "0-20", count: 0 },
+                        { range: "21-40", count: 0 },
+                        { range: "41-60", count: 0 },
+                        { range: "61-80", count: 0 },
+                        { range: "81-100", count: 0 },
+                      ];
+                      updated.forEach((r: any) => {
+                        const pct = r.adjustedScorePercentage !== undefined ? r.adjustedScorePercentage : r.scorePercentage;
+                        const s = pct || 0;
+                        if (s <= 20) ranges[0].count++;
+                        else if (s <= 40) ranges[1].count++;
+                        else if (s <= 60) ranges[2].count++;
+                        else if (s <= 80) ranges[3].count++;
+                        else ranges[4].count++;
+                      });
+
+                      setAnalytics({
+                        totalStudents: total,
+                        avgScore: avg,
+                        passRate: passRate,
+                        violationRate: analytics?.violationRate || 0,
+                        scoreDistribution: ranges
+                      });
+                    }
+
+                    toast.success(`Marks & Feedback published successfully for ${selectedSub.studentName}!`);
+                    setShowReviewDialog(false);
+                    setSelectedSub(null);
+                  }}
+                  className="bg-indigo-600 hover:bg-indigo-700 text-white font-black px-8 h-12 rounded-xl shadow-lg shadow-indigo-600/30 gap-1.5 uppercase tracking-wider text-xs"
+                >
+                  <PenTool className="h-4 w-4" />
+                  Publish & Send Points
+                </Button>
+              </div>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

@@ -115,28 +115,44 @@ export default function Dashboard() {
     ? examsToShow.filter(exam => exam.grade === user.grade)
     : examsToShow;
 
-  const mappedMyResults = myResults.map((r: any) => ({
-    examTitle: r.examTitle || `Exam ${r.examId}`,
-    score: r.correctCount,
-    total: r.totalQuestions,
-    date: (r.submittedAt && typeof r.submittedAt === "string") ? r.submittedAt.split("T")[0] : new Date().toISOString().split("T")[0],
-    duration: "60 mins", 
-    performance: (r.scorePercentage || 0) >= 80 ? "excellent" : (r.scorePercentage || 0) >= 50 ? "good" : "average"
-  }));
+  const mappedMyResults = myResults.map((r: any) => {
+    const isReleased = r.status === "reviewed" || r.status === "released" || r.pointsReleased === true;
+    const scoreVal = r.adjustedCorrectCount !== undefined ? r.adjustedCorrectCount : r.correctCount;
+    const scorePct = r.adjustedScorePercentage !== undefined ? r.adjustedScorePercentage : r.scorePercentage;
+    return {
+      examTitle: r.examTitle || `Exam ${r.examId}`,
+      score: isReleased ? scoreVal : null,
+      total: r.totalQuestions,
+      date: (r.submittedAt && typeof r.submittedAt === "string") ? r.submittedAt.split("T")[0] : new Date().toISOString().split("T")[0],
+      duration: "60 mins", 
+      performance: isReleased ? (scorePct >= 80 ? "excellent" : scorePct >= 50 ? "good" : "average") : undefined,
+      status: r.status || "pending",
+      teacherFeedback: r.teacherFeedback || "",
+      violationsCount: r.violations?.length || 0
+    };
+  });
 
   const globalResults = localResults.sort((a: any, b: any) => {
     const timeA = (a && a.submittedAt) ? new Date(a.submittedAt).getTime() : 0;
     const timeB = (b && b.submittedAt) ? new Date(b.submittedAt).getTime() : 0;
     return timeB - timeA;
-  }).slice(0, 3).map((r: any) => ({
-    examTitle: r.examTitle || `Exam ${r.examId}`,
-    studentName: r.studentName || "N/A",
-    score: r.correctCount,
-    total: r.totalQuestions,
-    date: (r.submittedAt && typeof r.submittedAt === "string") ? r.submittedAt.split("T")[0] : new Date().toISOString().split("T")[0],
-    duration: "60 mins",
-    performance: (r.scorePercentage || 0) >= 80 ? "excellent" : (r.scorePercentage || 0) >= 50 ? "good" : "average"
-  }));
+  }).slice(0, 3).map((r: any) => {
+    const isReleased = r.status === "reviewed" || r.status === "released" || r.pointsReleased === true;
+    const scoreVal = r.adjustedCorrectCount !== undefined ? r.adjustedCorrectCount : r.correctCount;
+    const scorePct = r.adjustedScorePercentage !== undefined ? r.adjustedScorePercentage : r.scorePercentage;
+    return {
+      examTitle: r.examTitle || `Exam ${r.examId}`,
+      studentName: r.studentName || "N/A",
+      score: isReleased ? scoreVal : scoreVal, // teacher dashboard can always see the raw score, but you can choose
+      total: r.totalQuestions,
+      date: (r.submittedAt && typeof r.submittedAt === "string") ? r.submittedAt.split("T")[0] : new Date().toISOString().split("T")[0],
+      duration: "60 mins",
+      performance: scorePct >= 80 ? "excellent" : scorePct >= 50 ? "good" : "average",
+      status: r.status || "pending",
+      teacherFeedback: r.teacherFeedback || "",
+      violationsCount: r.violations?.length || 0
+    };
+  });
 
   const recentResults = (user?.role === "teacher" || user?.role === "admin") 
     ? globalResults 
@@ -247,11 +263,15 @@ export default function Dashboard() {
             {recentResults.map((result: any, i) => (
               <ResultCard key={i} result={{
                 examTitle: result.examTitle,
+                studentName: result.studentName,
                 score: result.score,
                 total: result.total,
                 date: result.date,
                 duration: result.duration,
-                performance: result.performance
+                performance: result.performance,
+                status: result.status,
+                teacherFeedback: result.teacherFeedback,
+                violationsCount: result.violationsCount
               }} />
             ))}
           </div>
