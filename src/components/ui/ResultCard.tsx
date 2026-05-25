@@ -1,6 +1,7 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { CheckCircle2, MessageSquare, Clock, ShieldAlert, BadgeCheck, HelpCircle } from "lucide-react";
+import { Link } from "react-router-dom";
 
 interface Result {
   examTitle: string;
@@ -155,6 +156,14 @@ export function ResultCard({ result }: ResultCardProps) {
             )}
           </div>
         )}
+        <div className="mt-4 pt-3 border-t border-slate-100/70">
+          <Link 
+            to="/results" 
+            className="text-xs font-black text-indigo-600 hover:text-indigo-700 hover:underline flex items-center justify-center gap-1 uppercase tracking-wider"
+          >
+            Open Interactive Graded Exam Paper →
+          </Link>
+        </div>
       </CardContent>
     </Card>
   );

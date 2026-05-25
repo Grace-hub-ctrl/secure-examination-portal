@@ -7,6 +7,7 @@ import ExamInterface from "./pages/ExamInterface";
 import TeacherDashboard from "./pages/TeacherDashboard";
 import AdminDashboard from "./pages/AdminDashboard";
 import ExamsList from "./pages/ExamsList";
+import Results from "./pages/Results";
 import { AuthProvider, useAuth } from "./lib/auth";
 import React, { ReactNode } from "react";
 
@@ -51,6 +52,11 @@ export default function App() {
             <Route path="/exams" element={
               <ProtectedRoute allowedRoles={["student"]}>
                 <ExamsList />
+              </ProtectedRoute>
+            } />
+            <Route path="/results" element={
+              <ProtectedRoute>
+                <Results />
               </ProtectedRoute>
             } />
             <Route path="/teacher" element={

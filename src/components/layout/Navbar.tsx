@@ -36,6 +36,7 @@ export function Navbar() {
          <div className="hidden md:flex items-center space-x-6 font-sans">
            <Link to="/dashboard" className="text-sm font-semibold text-slate-600 hover:text-blue-600 transition-colors">Dashboard</Link>
            {user?.role === "student" && <Link to="/exams" className="text-sm font-semibold text-slate-600 hover:text-blue-600 transition-colors">Exams List</Link>}
+           <Link to="/results" className="text-sm font-semibold text-slate-600 hover:text-blue-600 transition-colors">Results History</Link>
            {user?.role === "teacher" && <Link to="/teacher" className="text-sm font-semibold text-slate-600 hover:text-blue-600 transition-colors">Teacher Panel</Link>}
            {user?.role === "admin" && <Link to="/admin" className="text-sm font-semibold text-slate-600 hover:text-blue-600 transition-colors">System Admin</Link>}
            
@@ -85,6 +86,7 @@ export function Navbar() {
                  </div>
                  <div className="flex flex-col space-y-2">
                    <Link to="/dashboard" className="text-base font-bold text-slate-700 px-4 py-2.5 hover:bg-slate-50 hover:text-blue-600 rounded-xl transition-all">Dashboard</Link>
+                    <Link to="/results" className="text-base font-bold text-slate-700 px-4 py-2.5 hover:bg-slate-50 hover:text-blue-600 rounded-xl transition-all">Results History</Link>
                    {user?.role === "student" && <Link to="/exams" className="text-base font-bold text-slate-700 px-4 py-2.5 hover:bg-slate-50 hover:text-blue-600 rounded-xl transition-all">Exams</Link>}
                    {user?.role === "teacher" && <Link to="/teacher" className="text-base font-bold text-slate-700 px-4 py-2.5 hover:bg-slate-50 hover:text-blue-600 rounded-xl transition-all">Teacher Panel</Link>}
                    {user?.role === "admin" && <Link to="/admin" className="text-base font-bold text-slate-700 px-4 py-2.5 hover:bg-slate-50 hover:text-blue-600 rounded-xl transition-all">Admin Panel</Link>}
